@@ -1,6 +1,7 @@
 import pytest
 
-from chatbot_fdj.domain.sql_validator import UnsafeSQLError, validate_sql
+from chatbot_fdj.domain.exceptions import UnsafeSQLError
+from chatbot_fdj.domain.sql_validator import validate_sql
 
 
 class TestHappyPath:

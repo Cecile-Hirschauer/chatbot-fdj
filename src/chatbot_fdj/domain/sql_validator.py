@@ -1,12 +1,10 @@
 import re
 
+from chatbot_fdj.domain.exceptions import UnsafeSQLError
+
 _FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
     {"DROP", "DELETE", "INSERT", "UPDATE", "TRUNCATE", "CREATE", "ALTER"}
 )
-
-
-class UnsafeSQLError(ValueError):
-    """Raised when a SQL query contains forbidden or unsafe operations."""
 
 
 def _extract_referenced_tables(upper: str) -> set[str]:
