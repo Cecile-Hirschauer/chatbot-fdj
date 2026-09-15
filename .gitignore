@@ -9,4 +9,9 @@ wheels/
 # Virtual environments
 .venv
 
+# Data & Database
+*.zip
+*.db
+*.sqlite
+
 .env
