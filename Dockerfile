@@ -7,18 +7,20 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 # Set the working directory inside the container
 WORKDIR /app
 
-# Copy the dependency management files first
-# (This allows Docker to cache the installation step if dependencies haven't changed)
-COPY pyproject.toml .
+# Copy dependency manifests first so Docker can cache the install layer
+COPY pyproject.toml uv.lock ./
 
-# Install the dependencies using uv
-# Note: if you have a uv.lock file, add it to the COPY command above
-RUN uv sync
+# Install only external dependencies (skip building the local package).
+# This layer is cached as long as pyproject.toml / uv.lock don't change.
+RUN uv sync --frozen --no-install-project
 
-# Copy the rest of the application code and the SQLite database
+# Copy the application source, data, and entry point
 COPY src/ ./src/
 COPY data/ ./data/
 COPY app.py .
+
+# Install the local package now that src/ is present
+RUN uv sync --frozen
 
 # Expose Streamlit's default port
 EXPOSE 8501
