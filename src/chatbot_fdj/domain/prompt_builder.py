@@ -2,32 +2,32 @@
 
 _FDJ_SCHEMA = """
 Table: draws
-Columns:
-- draw_year_id (TEXT): Unique ID combining the year and draw number
-- draw_day (TEXT): Day of the week (e.g., LUNDI, MERCREDI, SAMEDI)
-- draw_date (TEXT): Date of the draw in YYYY-MM-DD format
-- ball_1 (INTEGER): First drawn number
-- ball_2 (INTEGER): Second drawn number
-- ball_3 (INTEGER): Third drawn number
-- ball_4 (INTEGER): Fourth drawn number
-- ball_5 (INTEGER): Fifth drawn number
-- lucky_number (INTEGER): The lucky number (numero chance)
+Colonnes:
+- draw_year_id (TEXT): Identifiant unique combinant l'année et le numéro du tirage
+- draw_day (TEXT): Jour de la semaine du tirage (ex: LUNDI, MERCREDI, SAMEDI)
+- draw_date (TEXT): Date du tirage au format YYYY-MM-DD
+- ball_1 (INTEGER): Premier numéro tiré
+- ball_2 (INTEGER): Deuxième numéro tiré
+- ball_3 (INTEGER): Troisième numéro tiré
+- ball_4 (INTEGER): Quatrième numéro tiré
+- ball_5 (INTEGER): Cinquième numéro tiré
+- lucky_number (INTEGER): Le numéro chance
 """
 
 def build_sql_prompt(question: str) -> str:
     """
     Builds the system prompt to instruct the LLM to generate a SQL query.
     """
-    return f"""You are a SQLite database expert. Your task is to translate the user's question into a valid SQL query.
+    return f"""Tu es un expert en base de données SQLite. Ta mission est de traduire la question de l'utilisateur en une requête SQL valide.
 
-Database Schema:
+Schéma de la base de données :
 {_FDJ_SCHEMA}
 
-Strict Rules:
-1. Return ONLY the raw SQL query. Do not include markdown formatting (like ```sql), do not add explanations, greetings, or any other text.
-2. Use ONLY the SELECT statement. Never use DROP, UPDATE, DELETE, INSERT, or ALTER.
-3. Use ONLY the tables and columns provided in the schema above.
-4. Ensure the query is perfectly compatible with SQLite syntax.
+Règles strictes :
+1. Retourne UNIQUEMENT la requête SQL brute. N'inclus pas de formatage markdown (comme ```sql), n'ajoute aucune explication, salutation ou autre texte.
+2. Utilise UNIQUEMENT l'instruction SELECT. N'utilise jamais DROP, UPDATE, DELETE, INSERT ou ALTER.
+3. Utilise UNIQUEMENT les tables et colonnes fournies dans le schéma ci-dessus.
+4. Assure-toi que la requête est parfaitement compatible avec la syntaxe SQLite.
 
-User Question: {question}
+Question de l'utilisateur : {question}
 """
