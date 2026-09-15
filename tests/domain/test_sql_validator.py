@@ -9,15 +9,15 @@ class TestHappyPath:
         assert validate_sql(query) == query
 
     def test_select_with_where_clause(self):
-        query = "SELECT id, date FROM draws WHERE year = 2024"
+        query = "SELECT draw_date, ball_1 FROM draws WHERE draw_day = 'LUNDI'"
         assert validate_sql(query) == query
 
-    def test_select_with_join(self):
-        query = "SELECT d.id, r.rank FROM draws d JOIN results r ON d.id = r.draw_id"
+    def test_select_with_self_join(self):
+        query = "SELECT d1.draw_date FROM draws d1 JOIN draws d2 ON d1.draw_year_id = d2.draw_year_id"
         assert validate_sql(query) == query
 
     def test_select_with_aggregate(self):
-        query = "SELECT COUNT(*) FROM draws WHERE jackpot > 1000000"
+        query = "SELECT COUNT(*) FROM draws WHERE lucky_number = 7"
         assert validate_sql(query) == query
 
     def test_select_case_insensitive(self):
@@ -36,7 +36,7 @@ class TestForbiddenDmlKeywords:
 
     def test_delete_raises(self):
         with pytest.raises(UnsafeSQLError):
-            validate_sql("DELETE FROM draws WHERE id = 1")
+            validate_sql("DELETE FROM draws WHERE draw_year_id = '2024001'")
 
     def test_insert_raises(self):
         with pytest.raises(UnsafeSQLError):
@@ -44,7 +44,7 @@ class TestForbiddenDmlKeywords:
 
     def test_update_raises(self):
         with pytest.raises(UnsafeSQLError):
-            validate_sql("UPDATE draws SET col = 1")
+            validate_sql("UPDATE draws SET ball_1 = 1")
 
     def test_truncate_raises(self):
         with pytest.raises(UnsafeSQLError):
@@ -76,7 +76,7 @@ class TestForbiddenKeywordsAreCaseInsensitive:
 class TestMultipleStatements:
     def test_two_selects_raises(self):
         with pytest.raises(UnsafeSQLError):
-            validate_sql("SELECT * FROM draws; SELECT * FROM results")
+            validate_sql("SELECT * FROM draws; SELECT * FROM draws")
 
     def test_select_then_drop_raises(self):
         with pytest.raises(UnsafeSQLError):
@@ -87,8 +87,18 @@ class TestMultipleStatements:
             validate_sql("SELECT * FROM draws; DELETE FROM draws")
 
 
-_TABLES = frozenset({"draws", "results"})
-_COLUMNS = frozenset({"id", "date", "rank", "jackpot", "draw_id", "year"})
+_TABLES = frozenset({"draws"})
+_COLUMNS = frozenset({
+    "draw_year_id",
+    "draw_day",
+    "draw_date",
+    "ball_1",
+    "ball_2",
+    "ball_3",
+    "ball_4",
+    "ball_5",
+    "lucky_number"
+})
 
 
 class TestTableWhitelist:
@@ -103,22 +113,21 @@ class TestTableWhitelist:
     def test_joined_table_must_be_in_whitelist(self):
         with pytest.raises(UnsafeSQLError, match="Unknown table"):
             validate_sql(
-                "SELECT * FROM draws JOIN secrets ON draws.id = secrets.id",
+                "SELECT * FROM draws JOIN secrets ON draws.draw_year_id = secrets.id",
                 allowed_tables=_TABLES,
             )
 
-    def test_both_joined_tables_allowed_passes(self):
-        query = "SELECT * FROM draws JOIN results ON draws.id = results.draw_id"
+    def test_self_join_allowed_passes(self):
+        query = "SELECT * FROM draws d1 JOIN draws d2 ON d1.draw_year_id = d2.draw_year_id"
         assert validate_sql(query, allowed_tables=_TABLES) == query
 
     def test_no_whitelist_skips_table_check(self):
-        # Without a whitelist any table name is accepted
         assert validate_sql("SELECT * FROM internal_config") is not None
 
 
 class TestColumnWhitelist:
     def test_allowed_columns_pass(self):
-        query = "SELECT id, date FROM draws"
+        query = "SELECT draw_year_id, draw_date FROM draws"
         assert validate_sql(query, allowed_columns=_COLUMNS) == query
 
     def test_unknown_column_raises(self):
@@ -126,18 +135,15 @@ class TestColumnWhitelist:
             validate_sql("SELECT secret_hash FROM draws", allowed_columns=_COLUMNS)
 
     def test_wildcard_select_always_passes(self):
-        # SELECT * does not enumerate columns, so the whitelist is not applied
         query = "SELECT * FROM draws"
         assert validate_sql(query, allowed_columns=_COLUMNS) == query
 
     def test_table_qualified_column_passes(self):
-        query = (
-            "SELECT draws.id, results.rank FROM draws JOIN results ON draws.id = results.draw_id"
-        )
+        query = "SELECT draws.draw_year_id, draws.ball_1 FROM draws"
         assert validate_sql(query, allowed_columns=_COLUMNS) == query
 
     def test_aggregate_on_allowed_column_passes(self):
-        query = "SELECT COUNT(id) FROM draws"
+        query = "SELECT COUNT(draw_year_id) FROM draws"
         assert validate_sql(query, allowed_columns=_COLUMNS) == query
 
     def test_aggregate_on_unknown_column_raises(self):
@@ -145,7 +151,7 @@ class TestColumnWhitelist:
             validate_sql("SELECT COUNT(password) FROM draws", allowed_columns=_COLUMNS)
 
     def test_both_whitelists_together(self):
-        query = "SELECT id, rank FROM draws JOIN results ON draws.id = results.draw_id"
+        query = "SELECT draw_year_id, ball_1 FROM draws d1 JOIN draws d2 ON d1.draw_year_id = d2.draw_year_id"
         assert validate_sql(query, allowed_tables=_TABLES, allowed_columns=_COLUMNS) == query
 
 
