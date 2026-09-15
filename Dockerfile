@@ -9,6 +9,7 @@ WORKDIR /app
 
 # Copy dependency manifests first so Docker can cache the install layer
 COPY pyproject.toml uv.lock ./
+COPY README.md .
 
 # Install only external dependencies (skip building the local package).
 # This layer is cached as long as pyproject.toml / uv.lock don't change.
