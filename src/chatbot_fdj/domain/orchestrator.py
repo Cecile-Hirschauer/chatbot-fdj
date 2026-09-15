@@ -54,8 +54,14 @@ class ChatbotOrchestrator:
         )
 
     def _execute_sql(self, sql: str) -> str:
-        """Execute a validated SQL query and return results as a formatted string."""
-        with sqlite3.connect(self.db_path) as conn:
+        """Execute a validated SQL query and return results as a formatted string.
+
+        The database is opened in read-only mode (``?mode=ro``) via the SQLite
+        URI syntax. Any write attempt will raise ``sqlite3.OperationalError``
+        immediately, providing a second line of defence after the SQL validator.
+        """
+        db_uri = f"file:{self.db_path.absolute()}?mode=ro"
+        with sqlite3.connect(db_uri, uri=True) as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.execute(sql)
             rows = cursor.fetchmany(50)

@@ -15,11 +15,13 @@ st.markdown(
         .block-container {
             padding: 0 !important;
             max-width: 450px !important;
+            height: 95vh;
             border-radius: 15px;
             border: 1px solid #e0e0e0;
             box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-            overflow: hidden;
-            margin-top: 2rem;
+            overflow-y: auto;
+            overflow-x: hidden;
+            margin-top: 1rem;
         }
 
         .block-container::before {
@@ -63,7 +65,17 @@ except Exception as e:
     st.stop()
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = [
+        {"role": "assistant", "content": "Bonjour ! Je suis l'assistant Loto. Que souhaites-tu savoir sur les anciens tirages ?"}
+    ]
+
+col1, col2 = st.columns([3, 2])
+with col2:
+    if len(st.session_state.messages) > 1 and st.button("👋 Terminer", use_container_width=True):
+        st.session_state.messages = [
+            {"role": "assistant", "content": "Merci de ta visite ! N'hésite pas si tu as d'autres questions. 🍀"}
+        ]
+        st.rerun()
 
 for msg in st.session_state.messages:
     avatar = "🧑‍💻" if msg["role"] == "user" else "🍀"
