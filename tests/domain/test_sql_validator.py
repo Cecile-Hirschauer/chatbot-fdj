@@ -25,6 +25,22 @@ class TestHappyPath:
         query = "select * from draws"
         assert validate_sql(query) == query
 
+    def test_with_cte_passes_whitelist(self):
+        query = (
+            "WITH recent_draws AS (SELECT * FROM draws WHERE draw_day = 'LUNDI'), "
+            "all_balls AS (SELECT ball_1 FROM recent_draws) "
+            "SELECT * FROM all_balls"
+        )
+        assert validate_sql(query, allowed_tables=frozenset({"draws"})) == query
+
+    def test_with_cte_unknown_real_table_raises(self):
+        query = (
+            "WITH cte AS (SELECT * FROM draws) "
+            "SELECT * FROM cte JOIN secrets ON cte.draw_year_id = secrets.id"
+        )
+        with pytest.raises(UnsafeSQLError, match="Unknown table"):
+            validate_sql(query, allowed_tables=frozenset({"draws"}))
+
 
 class TestForbiddenDmlKeywords:
     def test_drop_table_raises(self):

@@ -7,12 +7,17 @@ _FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
 )
 
 
+def _extract_cte_names(upper: str) -> set[str]:
+    """Extract CTE names defined in a WITH clause (e.g. WITH foo AS (...), bar AS (...))."""
+    return set(re.findall(r"(?:WITH|,)\s+(\w+)\s+AS\s*\(", upper))
+
+
 def _extract_referenced_tables(upper: str) -> set[str]:
-    """Extract table names referenced after FROM and JOIN keywords."""
+    """Extract real table names referenced after FROM and JOIN, excluding CTE names."""
     tables: set[str] = set()
     tables.update(re.findall(r"\bFROM\s+(\w+)", upper))
     tables.update(re.findall(r"\bJOIN\s+(\w+)", upper))
-    return tables
+    return tables - _extract_cte_names(upper)
 
 
 def _extract_referenced_columns(upper: str) -> set[str]:
