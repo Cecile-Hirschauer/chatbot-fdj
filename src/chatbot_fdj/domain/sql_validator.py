@@ -88,8 +88,8 @@ def validate_sql(
         if re.search(rf"\b{keyword}\b", upper):
             raise UnsafeSQLError(f"Forbidden keyword '{keyword}' is not allowed")
 
-    if not upper.startswith("SELECT"):
-        raise UnsafeSQLError("Only SELECT queries are allowed")
+    if not (upper.startswith("SELECT") or upper.startswith("WITH")):
+        raise UnsafeSQLError("Only SELECT or WITH queries are allowed")
 
     if allowed_tables is not None:
         referenced = _extract_referenced_tables(upper)
