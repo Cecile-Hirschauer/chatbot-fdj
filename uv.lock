@@ -179,6 +179,7 @@ source = { editable = "." }
 dependencies = [
     { name = "pandas" },
     { name = "python-dotenv" },
+    { name = "requests" },
     { name = "streamlit" },
 ]
 
@@ -192,6 +193,7 @@ dev = [
 requires-dist = [
     { name = "pandas", specifier = ">=3.0.5" },
     { name = "python-dotenv", specifier = ">=1.2.3" },
+    { name = "requests", specifier = ">=2.34.2" },
     { name = "streamlit", specifier = ">=1.63.0" },
 ]
 
