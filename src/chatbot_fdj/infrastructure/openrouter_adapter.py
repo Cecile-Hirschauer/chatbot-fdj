@@ -47,18 +47,32 @@ class OpenRouterAdapter(LLMPort):
         return raw
 
     def generate_answer(self, question: str, sql_query: str, db_results: str) -> str:
-        prompt = (
-            f"User question: {question}\n"
-            f"SQL query executed: {sql_query}\n"
-            f"Raw database result: {db_results}\n\n"
-            "Write a clear, natural and concise answer in French for the user. "
-            "Do not invent any data that is not present in the raw result."
+        system_prompt = (
+            "Tu es un assistant strict, factuel et spécialisé UNIQUEMENT dans l'historique "
+            "des tirages du Loto FDJ.\n\n"
+            "RÈGLES ABSOLUES :\n"
+            "1. Si le résultat brut est 'No results found.' ou s'il est vide, tu DOIS répondre "
+            "que tu ne peux pas répondre car l'information n'est pas dans l'historique de la "
+            "base de données.\n"
+            "2. Ne fais JAMAIS de prédictions sur l'avenir.\n"
+            "3. Ne donne JAMAIS de conseils de chance (comme des couleurs, des rituels ou des "
+            "numéros porte-bonheur).\n"
+            "4. N'invente aucune donnée qui n'est pas explicitement présente dans le résultat brut."
+        )
+        user_prompt = (
+            f"Question de l'utilisateur : {question}\n"
+            f"Requête SQL exécutée : {sql_query}\n"
+            f"Résultat brut de la base de données : {db_results}\n\n"
+            "Rédige une réponse claire, naturelle et concise en français pour l'utilisateur."
         )
 
         payload = {
             "model": self.model,
-            "messages": [{"role": "user", "content": prompt}],
-            "temperature": 0.3,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt},
+            ],
+            "temperature": 0.1,
         }
 
         try:
