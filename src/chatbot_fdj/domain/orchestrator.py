@@ -33,9 +33,11 @@ class ChatbotOrchestrator:
         self.llm = llm
         self.db_path = db_path or _DEFAULT_DB_PATH
 
-    def generate_safe_sql(self, question: str) -> str:
+    def generate_safe_sql(
+        self, question: str, history: list[dict[str, str]] | None = None
+    ) -> str:
         """Generate and validate a SQL query from a natural language question."""
-        prompt = build_sql_prompt(question)
+        prompt = build_sql_prompt(question, history)
         raw_sql = self.llm.generate_sql(prompt)
         print(f"[DEBUG] Raw SQL from LLM: {raw_sql}")  # TODO: remove before production
 
@@ -57,13 +59,15 @@ class ChatbotOrchestrator:
             lines += [" | ".join(str(row[col]) for col in headers) for row in rows]
             return "\n".join(lines)
 
-    def answer_question(self, question: str) -> tuple[str, str, str]:
+    def answer_question(
+        self, question: str, history: list[dict[str, str]] | None = None
+    ) -> tuple[str, str, str]:
         """Run the full pipeline: SQL generation → DB execution → natural language answer.
 
         Returns:
             A tuple of (safe_sql, db_results, answer).
         """
-        safe_sql = self.generate_safe_sql(question)
+        safe_sql = self.generate_safe_sql(question, history)
         db_results = self._execute_sql(safe_sql)
         answer = self.llm.generate_answer(question, safe_sql, db_results)
         return safe_sql, db_results, answer
