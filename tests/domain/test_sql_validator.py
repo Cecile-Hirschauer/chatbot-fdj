@@ -87,6 +87,68 @@ class TestMultipleStatements:
             validate_sql("SELECT * FROM draws; DELETE FROM draws")
 
 
+_TABLES = frozenset({"draws", "results"})
+_COLUMNS = frozenset({"id", "date", "rank", "jackpot", "draw_id", "year"})
+
+
+class TestTableWhitelist:
+    def test_allowed_table_passes(self):
+        query = "SELECT * FROM draws"
+        assert validate_sql(query, allowed_tables=_TABLES) == query
+
+    def test_unknown_table_raises(self):
+        with pytest.raises(UnsafeSQLError, match="Unknown table"):
+            validate_sql("SELECT * FROM users", allowed_tables=_TABLES)
+
+    def test_joined_table_must_be_in_whitelist(self):
+        with pytest.raises(UnsafeSQLError, match="Unknown table"):
+            validate_sql(
+                "SELECT * FROM draws JOIN secrets ON draws.id = secrets.id",
+                allowed_tables=_TABLES,
+            )
+
+    def test_both_joined_tables_allowed_passes(self):
+        query = "SELECT * FROM draws JOIN results ON draws.id = results.draw_id"
+        assert validate_sql(query, allowed_tables=_TABLES) == query
+
+    def test_no_whitelist_skips_table_check(self):
+        # Without a whitelist any table name is accepted
+        assert validate_sql("SELECT * FROM internal_config") is not None
+
+
+class TestColumnWhitelist:
+    def test_allowed_columns_pass(self):
+        query = "SELECT id, date FROM draws"
+        assert validate_sql(query, allowed_columns=_COLUMNS) == query
+
+    def test_unknown_column_raises(self):
+        with pytest.raises(UnsafeSQLError, match="Unknown column"):
+            validate_sql("SELECT secret_hash FROM draws", allowed_columns=_COLUMNS)
+
+    def test_wildcard_select_always_passes(self):
+        # SELECT * does not enumerate columns, so the whitelist is not applied
+        query = "SELECT * FROM draws"
+        assert validate_sql(query, allowed_columns=_COLUMNS) == query
+
+    def test_table_qualified_column_passes(self):
+        query = (
+            "SELECT draws.id, results.rank FROM draws JOIN results ON draws.id = results.draw_id"
+        )
+        assert validate_sql(query, allowed_columns=_COLUMNS) == query
+
+    def test_aggregate_on_allowed_column_passes(self):
+        query = "SELECT COUNT(id) FROM draws"
+        assert validate_sql(query, allowed_columns=_COLUMNS) == query
+
+    def test_aggregate_on_unknown_column_raises(self):
+        with pytest.raises(UnsafeSQLError, match="Unknown column"):
+            validate_sql("SELECT COUNT(password) FROM draws", allowed_columns=_COLUMNS)
+
+    def test_both_whitelists_together(self):
+        query = "SELECT id, rank FROM draws JOIN results ON draws.id = results.draw_id"
+        assert validate_sql(query, allowed_tables=_TABLES, allowed_columns=_COLUMNS) == query
+
+
 class TestInvalidInput:
     def test_empty_string_raises(self):
         with pytest.raises(ValueError):
