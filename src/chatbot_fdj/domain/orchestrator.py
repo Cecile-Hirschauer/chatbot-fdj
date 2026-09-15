@@ -30,6 +30,14 @@ class ChatbotOrchestrator:
     )
 
     def __init__(self, llm: LLMPort, db_path: Path | None = None) -> None:
+        """Initialise the orchestrator.
+
+        Args:
+            llm: Concrete implementation of :class:`LLMPort` used for SQL
+                generation and answer synthesis.
+            db_path: Path to the SQLite database file. Defaults to
+                ``data/lottery.db`` relative to the project root.
+        """
         self.llm = llm
         self.db_path = db_path or _DEFAULT_DB_PATH
 
@@ -39,7 +47,6 @@ class ChatbotOrchestrator:
         """Generate and validate a SQL query from a natural language question."""
         prompt = build_sql_prompt(question, history)
         raw_sql = self.llm.generate_sql(prompt)
-        print(f"[DEBUG] Raw SQL from LLM: {raw_sql}")  # TODO: remove before production
 
         return validate_sql(
             query=raw_sql,

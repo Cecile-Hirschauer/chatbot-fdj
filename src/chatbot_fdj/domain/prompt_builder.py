@@ -14,11 +14,19 @@ Colonnes:
 
 
 def build_sql_prompt(question: str, history: list[dict[str, str]] | None = None) -> str:
-    """Build the system prompt to instruct the LLM to generate a SQL query.
+    """Build the prompt to instruct the LLM to generate a SQL query.
+
+    Injects the FDJ database schema and strict safety rules. When history is
+    provided, a recent conversation context block is prepended so the model
+    can resolve pronouns or implicit references across turns.
 
     Args:
         question: The user's natural language question.
-        history: Optional list of previous messages in {"role": ..., "content": ...} format.
+        history: Optional list of previous messages, each a dict with keys
+            ``"role"`` (``"user"`` or ``"assistant"``) and ``"content"``.
+
+    Returns:
+        A fully-formed prompt string ready to be sent to the LLM.
     """
     history_context = ""
     if history:

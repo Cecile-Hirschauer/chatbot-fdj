@@ -12,9 +12,26 @@ _OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 
 class OpenRouterAdapter(LLMPort):
-    """Concrete implementation of LLMPort for the OpenRouter API."""
+    """Concrete implementation of :class:`LLMPort` backed by the OpenRouter API.
+
+    OpenRouter provides a unified endpoint that can route requests to multiple
+    underlying models. By default, ``openrouter/auto`` is used, which lets the
+    platform select the most cost-effective model for each request.
+
+    Configuration via environment variables (loaded from ``.env``):
+        - ``OPENROUTER_API_KEY``: Required. Bearer token for authentication.
+        - ``OPENROUTER_MODEL``: Optional. Override the default model
+          (e.g. ``mistralai/mistral-7b-instruct``).
+    """
 
     def __init__(self, model: str | None = None) -> None:
+        """Initialise the adapter.
+
+        Args:
+            model: Model identifier to use. Resolution order:
+                constructor argument → ``OPENROUTER_MODEL`` env var →
+                ``openrouter/auto``.
+        """
         # Priority: constructor arg > OPENROUTER_MODEL env var > openrouter/auto
         self.model = model or os.getenv("OPENROUTER_MODEL", "openrouter/auto")
         self.url = _OPENROUTER_URL
@@ -25,6 +42,21 @@ class OpenRouterAdapter(LLMPort):
         }
 
     def generate_sql(self, prompt: str) -> str:
+        """Send a prompt to OpenRouter and return a cleaned SQL string.
+
+        Markdown fences (````sql … `````) and a trailing semicolon are stripped
+        from the model's raw output before returning.
+
+        Args:
+            prompt: The full instruction prompt including schema, rules,
+                optional history, and the user question.
+
+        Returns:
+            A clean SQL string without markdown or trailing semicolon.
+
+        Raises:
+            LLMGenerationError: On network errors or non-200 HTTP responses.
+        """
         payload = {
             "model": self.model,
             "messages": [{"role": "user", "content": prompt}],
@@ -47,6 +79,25 @@ class OpenRouterAdapter(LLMPort):
         return raw
 
     def generate_answer(self, question: str, sql_query: str, db_results: str) -> str:
+        """Generate a factual French answer grounded in the database results.
+
+        Uses a strict system prompt to prevent hallucinations: the model is
+        forbidden from predicting the future, giving luck advice, or inventing
+        data not present in ``db_results``. Temperature is set to 0.1 to keep
+        responses deterministic.
+
+        Args:
+            question: The original user question in natural language.
+            sql_query: The validated SQL query that was executed.
+            db_results: The formatted string of rows returned by the database,
+                or ``"No results found."`` if the query returned nothing.
+
+        Returns:
+            A concise natural language answer in French.
+
+        Raises:
+            LLMGenerationError: On network errors or non-200 HTTP responses.
+        """
         system_prompt = (
             "Tu es un assistant strict, factuel et spécialisé UNIQUEMENT dans l'historique "
             "des tirages du Loto FDJ.\n\n"
