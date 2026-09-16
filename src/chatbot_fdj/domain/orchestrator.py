@@ -13,6 +13,10 @@ _REFUSAL_MESSAGE = (
     "Je ne peux que consulter l'historique officiel."
 )
 
+_NO_DATA_MESSAGE = (
+    "Je n'ai pas trouvé cette information dans l'historique des tirages du Loto FDJ."
+)
+
 # Keywords that indicate an attempt to modify, simulate or invent draw data.
 # Checked in Python before the LLM is called, so no LLM compliance is required.
 _MODIFICATION_PATTERNS: list[str] = [
@@ -150,5 +154,9 @@ class ChatbotOrchestrator:
 
         safe_sql = self.generate_safe_sql(question, history)
         db_results = self._execute_sql(safe_sql)
+
+        if db_results == "No results found.":
+            return safe_sql, db_results, _NO_DATA_MESSAGE
+
         answer = self.llm.generate_answer(question, safe_sql, db_results)
         return safe_sql, db_results, answer
