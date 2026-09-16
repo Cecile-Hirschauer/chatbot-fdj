@@ -1,3 +1,4 @@
+import re
 import sqlite3
 from pathlib import Path
 
@@ -6,6 +7,57 @@ from chatbot_fdj.domain.prompt_builder import build_sql_prompt
 from chatbot_fdj.domain.sql_validator import validate_sql
 
 _DEFAULT_DB_PATH = Path(__file__).parent.parent.parent.parent / "data" / "lottery.db"
+
+_REFUSAL_MESSAGE = (
+    "Je ne suis pas autorisé à modifier ou simuler des tirages. "
+    "Je ne peux que consulter l'historique officiel."
+)
+
+# Keywords that indicate an attempt to modify, simulate or invent draw data.
+# Checked in Python before the LLM is called, so no LLM compliance is required.
+_MODIFICATION_PATTERNS: list[str] = [
+    # Replace / modify (imperative and infinitive forms)
+    r"\bremplace\b",
+    r"\bremplacer\b",
+    r"\bmodifie\b",
+    r"\bmodifier\b",
+    # "change" as imperative/infinitive (blocks "change le", "changer"),
+    # but NOT "changé" (past participle) or "changement" (noun) which appear in valid queries
+    r"\bchanger\b",
+    r"\bchange\s+le\b",
+    r"\bchange\s+la\b",
+    r"\bchange\s+les\b",
+    r"\bchange\s+un\b",
+    r"\baltère\b",
+    r"\baltérer\b",
+    # Delete / add
+    r"\bsupprime\b",
+    r"\bsupprimer\b",
+    r"\bajoute\b",
+    r"\bajouter\b",
+    # Simulate / invent / imagine / suppose
+    r"\bsimule\b",
+    r"\bsimuler\b",
+    r"\binvente\b",
+    r"\binventer\b",
+    r"\bimagin\w+\b",
+    r"\bsuppose\b",
+    r"\bsupposer\b",
+    # Create / generate (fictional draw)
+    r"\bcré[ée]\b",
+    r"\bcréer\b",
+    r"\bgénère\b",
+    r"\bgénérer\b",
+    # Hypothetical phrases
+    r"\bet si\b",
+    r"\bque se passerait\b",
+    r"\bque se passer\b",
+]
+
+_MODIFICATION_RE = re.compile(
+    "|".join(_MODIFICATION_PATTERNS),
+    re.IGNORECASE,
+)
 
 
 class ChatbotOrchestrator:
@@ -72,14 +124,30 @@ class ChatbotOrchestrator:
             lines += [" | ".join(str(row[col]) for col in headers) for row in rows]
             return "\n".join(lines)
 
+    @staticmethod
+    def _is_modification_attempt(question: str) -> bool:
+        """Return True if the question contains modification or simulation keywords.
+
+        This check runs in Python before the LLM is involved, making it
+        immune to prompt injection and LLM non-compliance.
+        """
+        return bool(_MODIFICATION_RE.search(question))
+
     def answer_question(
         self, question: str, history: list[dict[str, str]] | None = None
     ) -> tuple[str, str, str]:
         """Run the full pipeline: SQL generation → DB execution → natural language answer.
 
+        If the question is detected as a modification or simulation attempt,
+        the pipeline is short-circuited and a fixed refusal message is returned
+        without calling the LLM for the answer step.
+
         Returns:
             A tuple of (safe_sql, db_results, answer).
         """
+        if self._is_modification_attempt(question):
+            return "", "", _REFUSAL_MESSAGE
+
         safe_sql = self.generate_safe_sql(question, history)
         db_results = self._execute_sql(safe_sql)
         answer = self.llm.generate_answer(question, safe_sql, db_results)
